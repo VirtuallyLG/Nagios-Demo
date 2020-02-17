@@ -1,4 +1,5 @@
 #!/bin/bash
+# install packages for Nagios requirements 
 yum install -y httpd httpd-tools php gcc glibc glibc-common gd gd-devel make net-snmp openssl-devel xinetd unzip
 
 # set users for nagios and apache
@@ -8,8 +9,8 @@ usermod -G nagcmd nagios
 usermod -G nagcmd apache
 
 # download the nagios and plugin sourcecode
-mkdir /root/nagios
-cd /root/nagios
+mkdir ./nagios
+cd nagios
 wget https://assets.nagios.com/downloads/nagioscore/releases/nagios-4.4.5.tar.gz
 wget https://nagios-plugins.org/download/nagios-plugins-2.3.1.tar.gz
 tar zxf nagios-4.4.5.tar.gz
@@ -53,16 +54,18 @@ mkdir /usr/local/nagios/etc/servers
 # modify email for nagios admin
 sed -i 's/nagios@localhost/lorenzo.galelli@ionos.com/g'  /usr/local/nagios/etc/objects/contacts.cfg
 
-#echo 'define command {
-#        command_name check_nrpe
-#        command_line $USER1$/check_nrpe -H $HOSTADDRESS$ -c $ARG1$
-#}' >> /usr/local/nagios/etc/objects/commands.cfg
+echo 'define command {
+        command_name check_nrpe
+        command_line $USER1$/check_nrpe -H $HOSTADDRESS$ -c $ARG1$
+}' >> /usr/local/nagios/etc/objects/commands.cfg
 
 # create password for nagiosadmin
-htpasswd -cdb /usr/local/nagios/etc/htpasswd.users nagiosadmin Ionos110568
+htpasswd -cdb /usr/local/nagios/etc/htpasswd.users nagiosadmin Ionos110 # < change password
 
 # ready services for nagios
 # systemctl daemon-reload
 systemctl start nagios.service
 systemctl restart httpd.service
-chkconfig nagios on
+systemctl enable nagios
+systemctl enable httpd
+echo "Installation of Nagios Core 4.4.5 is complete, connect to the server using http://"$localip"/nagios"

@@ -1,0 +1,168 @@
+#!/bin/bash
+ 
+#Uncomment the next two lines for debugging. Check logs in /tmp to see how execution's being done
+#exec 2> /tmp/nagioslog."$$"
+#set -x
+ 
+# Event handler script for My Apps
+# To run, use my_event_handler -s $SERVICESTATE$ -t $STATETYPE$ -a $SERVICEATTEMPT$ -H $HOSTADDRESS$ -c command
+ 
+#
+ 
+# Note: This script will only kick in if the service is
+ 
+#       retried 3 times (in a "soft" state) or if the service somehow
+ 
+#       manages to fall into a "hard" error state.
+ 
+#
+ 
+#function to display correct usage help
+function usage(){
+cat <<EOF
+This script kicks in to perform remedial action on various services monitored by Nagios when their
+state changes to near critical. It attempts to correct the issue so we don't go into a CRITICAL state
+usage: my_event_handler -s <ServiceState> -t <StateType> -a <ServiceAttempts> -H <HostAddress> -c <Command>
+ 
+OPTIONS:
+  -s The service state (WARNING,UNKNOWN,CRITICAL)
+  -t The state type (SOFT,HARD)
+  -a The service attempts ( 1,2,3,4)
+  -H The host address
+  -c The command
+ 
+EOF
+}
+serviceState=
+stateType=
+serviceAttempts=
+hostname=
+runCommand=
+ 
+# What state is the service in?
+while getopts "s:t:a:H:c:" OPTION
+do
+  case $OPTION in
+        s)
+          serviceState=$OPTARG
+          ;;
+        t)
+          stateType=$OPTARG
+          ;;
+        a)
+          serviceAttempts=$OPTARG
+          ;;
+        H)
+          hostname=$OPTARG
+          ;;
+        c)
+          runCommand=$OPTARG
+          ;;
+        ?)
+          usage
+          exit
+          ;;
+  esac
+done
+ 
+#Check that all the arguments have been provided
+if [[ -z $serviceState ]] || [[ -z $stateType ]] || [[ -z $serviceAttempts ]] || [[ -z $hostname ]] || [[ -z $runCommand ]]
+then
+    usage
+    exit 1
+fi
+ 
+case "$serviceState" in
+ 
+        OK)
+ 
+        # The service just came back up, so don't do anything...
+ 
+        ;;
+ 
+        WARNING)
+ 
+        # Usually, we don't really care about warning states, since the service is probably still running...
+        ##IF you have services for which you act even on warnings...
+        if [[ $runCommand == "my_custom_hunger_command" ]] && [[ $serviceAttempts -gt 2 ]]
+        then
+                /usr/local/nagios/libexec/check_nrpe -H $hostname -c $runCommand
+        fi
+        ;;
+ 
+        UNKNOWN)
+ 
+        # We don't know what might be causing an unknown error, so don't do anything...
+ 
+        ;;
+ 
+        CRITICAL)
+ 
+        # Aha!  The service appears to have a problem - perhaps we should restart the service...
+ 
+        # Is this a "soft" or a "hard" state?
+ 
+        case "$stateType" in
+ 
+        # We're in a "soft" state, meaning that Nagios is in the middle of retrying the
+ 
+        # check before it turns into a "hard" state and contacts get notified...
+ 
+        SOFT)
+ 
+                # What check attempt are we on?  We don't want to restart the service on the first
+ 
+                # check, because it may just be a fluke!
+ 
+                case "$serviceAttempts" in
+ 
+                # Wait until the check has been tried 3 times before restarting the service.
+ 
+                # If the check fails on the 4th time (after we restart the service), the state
+ 
+                # type will turn to "hard" and contacts will be notified of the problem.
+ 
+                # Hopefully this will restart the service successfully, so the 4th check will
+ 
+                # result in a "soft" recovery.  If that happens no one gets notified because we
+ 
+                # fixed the problem!
+ 
+                3)
+ 
+                        echo -n "Performing remedial action..."
+ 
+                        # Call NRPE on the remote host
+ 
+                        /usr/local/nagios/libexec/check_nrpe -H $hostname -c $runCommand
+ 
+                        ;;
+ 
+                        esac
+ 
+                ;;
+ 
+        # The  service somehow managed to turn into a hard error without getting fixed.
+ 
+        # It should have been restarted by the code above, but for some reason it didn't.
+ 
+        # Let's give it one last try, shall we?
+ 
+        # Note: Contacts have already been notified of a problem with the service at this
+ 
+        # point (unless you disabled notifications for this service)
+ 
+        HARD)
+ 
+                echo -n "Performing remedial action..."
+ 
+                /usr/local/nagios/libexec/check_nrpe -H $hostname -c $runCommand
+ 
+                ;;
+ 
+        esac
+ 
+        ;;
+ 
+esac
+exit 0

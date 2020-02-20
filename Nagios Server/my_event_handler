@@ -83,8 +83,8 @@ case "$serviceState" in
         WARNING)
  
         # Usually, we don't really care about warning states, since the service is probably still running...
-        ##IF you have services for which you act even on warnings...
-        if [[ $runCommand == "my_custom_hunger_command" ]] && [[ $serviceAttempts -gt 2 ]]
+        ##IF you have services for which you act even on warnings then create a script and reference it below ...
+        if [[ $runCommand == "remediate_now_custom_command" ]] && [[ $serviceAttempts -gt 2 ]]
         then
                 /usr/local/nagios/libexec/check_nrpe -H $hostname -c $runCommand
         fi

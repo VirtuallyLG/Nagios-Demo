@@ -1,0 +1,22 @@
+File Locations
+
+Templates
+	/usr/local/nagios/etc/objects/templates.cfg
+servers
+	/usr/local/nagios/etc/objects/servers/
+commands
+	/usr/local/nagios/etc/objects/commands.cfg
+nagios main config
+	/usr/local/nagios/etc/nagios.cfg
+Logs
+	/usr/local/nagios/var/nagios.log 
+
+useful commands
+view logs with human timestamps!
+	tail -f /usr/local/nagios/var/nagios.log | perl -pe 's/(\d+)/localtime($1)/e'
+restart nagios services
+	systemctl start nagios.service
+Validate Nagios config
+	/usr/local/nagios/bin/nagios -v /usr/local/nagios/etc/nagios.cfg
+check local disk plugin
+/usr/local/nagios/libexec/check_disk 10 20 /
